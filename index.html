@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ms"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PdP SMART · SMK Ulu Sugut</title>
+<style>
+:root{--bg:#f4f7f5;--card:#fff;--tx:#17231d;--mu:#5d6b63;--pr:#1f5c45;--pt:#fff;--bd:#d5dfd9;--ok:#1a7f4b;--no:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#101a15;--card:#18261f;--tx:#e6efe9;--mu:#9fb0a6;--pr:#4fb88b;--pt:#07130d;--bd:#2c3f35;--ok:#5fd193;--no:#ff8a80}}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:900px;margin:auto;padding:14px}
+h1{font-size:20px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+.tabs{display:flex;gap:8px}.tabs button{flex:1}
+button,input,select,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:9px 10px;width:100%;box-sizing:border-box}
+button{cursor:pointer;width:auto}button.p,.tabs .on{background:var(--pr);color:var(--pt);border-color:var(--pr)}
+label{display:block;font-size:13px;color:var(--mu);margin:8px 0 3px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:560px){.g{grid-template-columns:1fr}}
+.mu{color:var(--mu);font-size:13px}.ok{color:var(--ok)}.no{color:var(--no)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;white-space:nowrap}
+.opt{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--bd);border-radius:8px;margin:6px 0}.opt input{width:auto}
+.hide{display:none}.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+#tm{font-weight:700;color:var(--pr)}
+</style></head><body><main>
+<h1>PdP SMART · SMK Ulu Sugut</h1>
+<div class="tabs card"><button id="tM" class="on">Murid</button><button id="tG">Guru / Dashboard</button></div>
+
+<section id="vM">
+ <div class="card" id="login"><h2>Masuk kelas</h2>
+  <label>Kod kelas (contoh: 1ZIRCONE, 4ELIT)</label><input id="kod" autocapitalize="characters">
+  <label>Nama penuh murid</label><input id="nama"><p id="err" class="no"></p>
+  <button class="p" id="bMasuk">Masuk</button></div>
+ <div id="list" class="hide"></div><div id="quiz" class="hide card"></div>
+</section>
+
+<section id="vG" class="hide">
+ <div class="card" id="gLogin"><h2>Log masuk guru</h2>
+  <label>E-mel</label><input id="gE" type="email" autocomplete="username">
+  <label>Kata laluan</label><input id="gP" type="password" autocomplete="current-password">
+  <p id="gErr" class="no"></p><button class="p" id="bLog">Log masuk</button></div>
+ <div id="gApp" class="hide">
+  <div class="card row"><span id="who"></span><button id="bOut">Log keluar</button></div>
+  <div class="card"><h2>Cipta aktiviti</h2><div class="g">
+   <div><label>Tajuk</label><input id="aT"></div>
+   <div><label>Matapelajaran</label><select id="aM"></select></div>
+   <div><label>Kelas</label><select id="aK"></select></div>
+   <div><label>Masa menjawab (minit)</label><input id="aMin" type="number" value="15" min="1"></div>
+   <div><label>Mula</label><input id="aS" type="datetime-local"></div>
+   <div><label>Tamat</label><input id="aE" type="datetime-local"></div></div>
+   <label>Soalan (satu baris: Soalan | A | B | C | D | jawapan A-D)</label>
+   <textarea id="aQ" rows="5" placeholder="2 + 3 = ? | 4 | 5 | 6 | 7 | B"></textarea>
+   <p><button class="p" id="bCipta">Hantar aktiviti</button> <span id="gm" class="mu"></span></p></div>
+  <div class="card"><h2>Dashboard (masa nyata)</h2><div class="g">
+   <div><label>Kelas</label><select id="fK"></select></div>
+   <div><label>Matapelajaran</label><select id="fM"></select></div></div>
+   <p class="mu" id="skop"></p><div class="tw"><table id="dash"></table></div></div>
+ </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* === ISI DUA NILAI INI (Supabase > Project Settings > API) === */
+const SUPABASE_URL="https://GANTI-INI.supabase.co";
+const SUPABASE_ANON_KEY="GANTI-DENGAN-ANON-PUBLIC-KEY";
+/* ============================================================= */
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const KELAS={1:["Zircone","Citrine","Topaz","Ruby","Diamond","Sapphire","Emerald"],2:["Zircon","Diamond","Sapphire","Ruby","Emerald","Topaz"],3:["Diamond","Emerald","Ruby","Sapphire","Zircon","Topaz","Citrine"],4:["Elit","Diamond","Sapphire","Ruby","Emerald","Citrine"],5:["Elit","Diamond","Sapphire","Ruby","Emerald"]};
+const SEMUA=[];for(const t in KELAS)KELAS[t].forEach(n=>SEMUA.push(t+" "+n));
+const MP=["Bahasa Melayu","Bahasa Inggeris","Matematik","Sains","Pendidikan Islam/Pendidikan Moral","Asas Sains Komputer","Geografi","Pendidikan Muzik","Pendidikan Seni Visual","Reka Bentuk dan Teknologi","Pendidikan Jasmani dan Kesihatan","Matematik Tambahan","Fizik","Kimia","Biologi","Pertanian","Sains Sukan","Prinsip Perakaunan","Ekonomi","Perniagaan","Tasawwur Islam"];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const kodOf=k=>k.replace(/\s/g,"").toUpperCase();
+const fill=(id,a,first)=>$(id).innerHTML=(first?'<option value="">'+first+'</option>':'')+a.map(x=>'<option>'+esc(x)+'</option>').join("");
+fill("aM",MP);fill("aK",SEMUA);fill("fK",SEMUA,"Semua kelas");fill("fM",MP,"Semua matapelajaran");
+const tab=(m)=>{$("vM").classList.toggle("hide",!m);$("vG").classList.toggle("hide",m);$("tM").className=m?"on":"";$("tG").className=m?"":"on"};
+$("tM").onclick=()=>tab(true);$("tG").onclick=()=>tab(false);
+
+/* ---------- MURID ---------- */
+let me=null,tmr;
+$("bMasuk").onclick=()=>{const k=SEMUA.find(x=>kodOf(x)===kodOf($("kod").value)),n=$("nama").value.trim();
+ if(!k||!n){$("err").textContent=!k?"Kod kelas tidak sah.":"Sila isi nama.";return}
+ me={kelas:k,nama:n};$("err").textContent="";$("login").classList.add("hide");$("list").classList.remove("hide");drawList()};
+async function drawList(){
+ const[{data:as,error},{data:ds}]=await Promise.all([
+  sb.from("aktiviti").select("id,tajuk,mp,minit,mula,tamat,soalan").eq("kelas",me.kelas).order("dicipta",{ascending:false}),
+  sb.rpc("selesai",{p_nama:me.nama,p_kelas:me.kelas})]);
+ const now=new Date();let h=`<div class="card row"><div><b>${esc(me.kelas)}</b> · ${esc(me.nama)}</div><div><button id="bR">Muat semula</button> <button id="bK">Keluar</button></div></div>`;
+ if(error)h+='<div class="card no">Gagal memuat aktiviti.</div>';
+ for(const a of as||[]){const d=(ds||[]).find(x=>x.aid===a.id),tutup=a.tamat&&now>new Date(a.tamat),belum=a.mula&&now<new Date(a.mula);
+  h+=`<div class="card row"><div><b>${esc(a.tajuk)}</b><div class="mu">${esc(a.mp)} · ${a.soalan.length} soalan · ${a.minit} minit${a.tamat?" · tamat "+new Date(a.tamat).toLocaleString("ms-MY"):""}</div></div>`+
+  (d?`<span class="ok">Selesai ${d.markah}/${d.jumlah}</span>`:tutup?'<span class="no">Ditutup</span>':belum?'<span class="mu">Belum dibuka</span>':`<button class="p" data-id="${a.id}">Mula</button>`)+"</div>"}
+ if(!(as||[]).length&&!error)h+='<div class="card mu">Tiada aktiviti untuk kelas ini lagi.</div>';
+ $("list").innerHTML=h;$("bR").onclick=drawList;$("bK").onclick=()=>{me=null;$("list").classList.add("hide");$("login").classList.remove("hide")};
+ $("list").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>mula(as.find(x=>x.id===b.dataset.id)))}
+function mula(a){const end=Date.now()+a.minit*60000;
+ $("list").classList.add("hide");$("quiz").classList.remove("hide");
+ $("quiz").innerHTML=`<div class="row"><h2>${esc(a.tajuk)}</h2><span id="tm"></span></div>`+a.soalan.map((q,i)=>`<div><p><b>${i+1}. ${esc(q.q)}</b></p>`+q.o.map((o,j)=>`<label class="opt"><input type="radio" name="q${i}" value="${j}"> ${"ABCD"[j]}. ${esc(o)}</label>`).join("")+"</div>").join("")+'<button class="p" id="bH">Hantar jawapan</button> <span id="hm" class="no"></span>';
+ let done=false;const hantar=async()=>{if(done)return;done=true;clearInterval(tmr);$("bH").disabled=true;
+  const j=a.soalan.map((_,i)=>{const c=document.querySelector(`input[name=q${i}]:checked`);return c?+c.value:-1});
+  const{data,error}=await sb.rpc("hantar",{p_aid:a.id,p_nama:me.nama,p_jawapan:j});
+  $("quiz").innerHTML=error?`<h2 class="no">Gagal hantar</h2><p>${esc(error.message.includes("duplicate")?"Anda sudah menjawab aktiviti ini.":error.message)}</p>`:`<h2>Keputusan</h2><p style="font-size:28px" class="ok"><b>${data.markah} / ${data.jumlah}</b></p>`;
+  $("quiz").insertAdjacentHTML("beforeend",'<button class="p" id="bB">Kembali</button>');
+  $("bB").onclick=()=>{$("quiz").classList.add("hide");$("list").classList.remove("hide");drawList()}};
+ $("bH").onclick=hantar;
+ const tick=()=>{const s=Math.max(0,Math.round((end-Date.now())/1000));$("tm")&&($("tm").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"));if(s<=0)hantar()};
+ tick();tmr=setInterval(tick,1000)}
+
+/* ---------- GURU ---------- */
+let prof=null,ch=null;
+$("bLog").onclick=async()=>{const{error}=await sb.auth.signInWithPassword({email:$("gE").value.trim(),password:$("gP").value});
+ $("gErr").textContent=error?"E-mel atau kata laluan salah.":"";if(!error)initGuru()};
+$("bOut").onclick=async()=>{await sb.auth.signOut();if(ch)sb.removeChannel(ch);$("gApp").classList.add("hide");$("gLogin").classList.remove("hide")};
+async function initGuru(){
+ const{data:{user}}=await sb.auth.getUser();if(!user)return;
+ const{data}=await sb.from("profil").select("nama,peranan,kelas").eq("id",user.id).maybeSingle();
+ if(!data){$("gErr").textContent="Akaun belum didaftarkan sebagai guru. Hubungi pentadbir sistem.";await sb.auth.signOut();return}
+ prof=data;$("gLogin").classList.add("hide");$("gApp").classList.remove("hide");
+ const P={guru:"Guru matapelajaran",guru_kelas:"Guru kelas "+(data.kelas||""),ketua_bidang:"Ketua bidang",pentadbir:"Pentadbir"};
+ $("who").textContent=data.nama+" · "+P[data.peranan];
+ $("skop").textContent=data.peranan==="guru"?"Anda melihat aktiviti yang anda cipta sahaja.":data.peranan==="guru_kelas"?"Anda melihat semua keputusan kelas anda.":"Anda melihat semua kelas.";
+ drawDash();if(ch)sb.removeChannel(ch);
+ ch=sb.channel("hasil").on("postgres_changes",{event:"*",schema:"public",table:"hasil"},drawDash).on("postgres_changes",{event:"*",schema:"public",table:"aktiviti"},drawDash).subscribe()}
+$("fK").onchange=$("fM").onchange=()=>drawDash();
+async function drawDash(){
+ let q=sb.from("aktiviti").select("id,tajuk,mp,kelas,soalan,dicipta").order("dicipta",{ascending:false}).limit(100);
+ if($("fK").value)q=q.eq("kelas",$("fK").value);if($("fM").value)q=q.eq("mp",$("fM").value);
+ const{data:as}=await q;const ids=(as||[]).map(a=>a.id);
+ const{data:hs}=ids.length?await sb.from("hasil").select("aid,nama,markah,jumlah,masa").in("aid",ids).order("markah",{ascending:false}):{data:[]};
+ let h="<tr><th>Aktiviti</th><th>MP</th><th>Kelas</th><th>Hantar</th><th>Purata</th></tr>";
+ for(const a of as||[]){const r=(hs||[]).filter(x=>x.aid===a.id),avg=r.length?Math.round(r.reduce((s,x)=>s+x.markah/x.jumlah*100,0)/r.length)+"%":"-";
+  h+=`<tr><td>${esc(a.tajuk)}</td><td>${esc(a.mp)}</td><td>${esc(a.kelas)}</td><td>${r.length}</td><td>${avg}</td></tr>`;
+  for(const x of r)h+=`<tr><td class="mu" colspan="3">&nbsp;&nbsp;↳ ${esc(x.nama)}</td><td>${x.markah}/${x.jumlah}</td><td>${new Date(x.masa).toLocaleTimeString("ms-MY",{hour:"2-digit",minute:"2-digit"})}</td></tr>`}
+ if(!(as||[]).length)h+='<tr><td colspan="5" class="mu">Belum ada aktiviti.</td></tr>';$("dash").innerHTML=h}
+$("bCipta").onclick=async()=>{
+ const ps=$("aQ").value.split("\n").map(l=>l.split("|").map(s=>s.trim())).filter(p=>p.length>=6&&p[0]&&"ABCD".includes(p[5].toUpperCase())&&p[5].length===1);
+ if(!$("aT").value||!ps.length){$("gm").textContent="Isi tajuk dan sekurang-kurangnya 1 soalan sah.";return}
+ const{error}=await sb.rpc("cipta_aktiviti",{p_tajuk:$("aT").value,p_mp:$("aM").value,p_kelas:$("aK").value,p_minit:+$("aMin").value||15,
+  p_mula:$("aS").value?new Date($("aS").value).toISOString():null,p_tamat:$("aE").value?new Date($("aE").value).toISOString():null,
+  p_soalan:ps.map(p=>({q:p[0],o:p.slice(1,5)})),p_kunci:ps.map(p=>"ABCD".indexOf(p[5].toUpperCase()))});
+ $("gm").textContent=error?"Gagal: "+error.message:"Aktiviti dihantar ("+ps.length+" soalan).";if(!error){$("aT").value="";$("aQ").value=""}};
+sb.auth.getSession().then(({data})=>{if(data.session)initGuru()});
+</script></main></body></html>
